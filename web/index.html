@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" id="theme-color" content="#f3f5f0">
+	<title>用户用量 · Sub2API Ops</title>
+	<script src="/theme.js"></script>
+	<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+	<main class="shell">
+		<div class="topline">
+			<div class="brand"><span class="brand-mark" aria-hidden="true">S</span> Sub2API Ops</div>
+			<div class="top-actions">
+				<span>运营数据</span>
+				<a class="nav-link" href="/models.html">可用模型</a>
+				<button class="icon-button" id="theme-toggle" type="button" aria-label="切换到暗色模式" title="切换到暗色模式">
+					<span id="theme-icon" aria-hidden="true">☾</span>
+				</button>
+				<button class="icon-button" id="refresh-button" type="button" aria-label="刷新用量" title="刷新用量">
+					<span aria-hidden="true">↻</span>
+				</button>
+				<button class="key-button" id="key-open-button" type="button">输入 Key</button>
+			</div>
+		</div>
+
+		<section aria-labelledby="page-title">
+			<div class="intro">
+				<div>
+					<p class="eyebrow">Usage overview</p>
+					<h1 id="page-title">用户用量</h1>
+				</div>
+				<p class="intro-note">查看所有用户的 Token 与请求数使用分布。占比按当前排行指标与时间范围计算。</p>
+			</div>
+
+			<p class="feedback" id="feedback" role="status" aria-live="polite">请输入有效 Key 后查询。</p>
+		</section>
+
+		<section id="results" hidden aria-label="用户用量结果">
+			<div class="overview" aria-label="用量汇总">
+				<div class="metric">
+					<span class="metric-label">用户数</span>
+					<strong class="metric-value" id="user-count">0</strong>
+				</div>
+				<div class="metric">
+					<span class="metric-label" id="metric-total-label">Token 总量</span>
+					<strong class="metric-value" id="metric-total">0</strong>
+				</div>
+				<div class="metric">
+					<span class="metric-label" id="top-user-label">Token 最高</span>
+					<strong class="metric-value is-name" id="top-user">-</strong>
+				</div>
+			</div>
+
+			<div class="list-heading">
+				<div class="heading-controls">
+					<h2>用户排行</h2>
+					<div class="switch-group">
+						<div class="range-switch" role="group" aria-label="排行用量范围">
+							<button class="range-button is-active" type="button" data-range="total" aria-pressed="true">总用量</button>
+							<button class="range-button" type="button" data-range="yesterday" aria-pressed="false">昨日</button>
+							<button class="range-button" type="button" data-range="today" aria-pressed="false">今日</button>
+						</div>
+						<div class="metric-switch" role="group" aria-label="排行指标">
+							<button class="metric-button is-active" type="button" data-metric="tokens" aria-pressed="true" title="按 Token 用量排行">Token</button>
+							<button class="metric-button" type="button" data-metric="requests" aria-pressed="false" title="按请求数排行">请求数</button>
+						</div>
+					</div>
+				</div>
+				<span class="list-caption" id="range-caption">按总 Token 用量从高到低</span>
+			</div>
+			<div class="usage-list" id="usage-list"></div>
+			<div class="empty-state" id="empty-state" hidden>当前没有可显示的用户用量。</div>
+		</section>
+
+		<footer class="footer">
+			<span>数据由 Sub2API 提供</span>
+			<span>Key 保存在当前浏览器 Cookie，有效期 30 天</span>
+		</footer>
+	</main>
+
+	<dialog class="key-dialog" id="key-dialog" aria-labelledby="key-dialog-title">
+		<div class="dialog-heading">
+			<div>
+				<p class="eyebrow">Access</p>
+				<h2 id="key-dialog-title">输入 API Key</h2>
+			</div>
+			<button class="icon-button dialog-close" id="key-close-button" type="button" aria-label="关闭" title="关闭">×</button>
+		</div>
+		<p class="dialog-description">使用有效的用户 API Key 查询用量数据。</p>
+		<form class="key-form" id="query-form">
+			<div class="key-field">
+				<label for="api-key">API Key</label>
+				<input id="api-key" name="key" type="password" placeholder="请输入有效的用户 API Key" autocomplete="current-password" required>
+			</div>
+			<button class="submit-button" id="submit-button" type="submit">查询用量</button>
+		</form>
+		<p class="feedback dialog-feedback" id="key-feedback" role="status" aria-live="polite"></p>
+	</dialog>
+
+	<script src="/app.js" defer></script>
+</body>
+</html>
