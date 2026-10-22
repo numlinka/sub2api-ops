@@ -14,7 +14,7 @@ from fastapi import Response
 
 # local
 from basic import app, httpclient
-from constants import BASE_URL, HEADERS
+from constants import ADMIN_BASE_URL, HEADERS
 
 
 class Cache (Static):
@@ -61,7 +61,7 @@ async def update_users_usage() -> None:
         this_month_str = now.date().replace(day=1).strftime("%Y-%m-%d")
 
         response = await httpclient.get(
-            f"{BASE_URL}/api/v1/admin/dashboard/users-trend",
+            f"{ADMIN_BASE_URL}/api/v1/admin/dashboard/users-trend",
             params={
                 "metric": "tokens",
                 "start_date": this_month_str,
@@ -118,7 +118,7 @@ async def is_valid_key(key: str) -> bool:
 async def update_all_users_keys() -> None:
     try:
         response = await httpclient.get(
-            f"{BASE_URL}/api/v1/admin/users",
+            f"{ADMIN_BASE_URL}/api/v1/admin/users",
             headers=HEADERS
         )
 
@@ -142,7 +142,7 @@ async def update_all_users_keys() -> None:
 
         for uid in uid_lst:
             response = await httpclient.get(
-                f"{BASE_URL}/api/v1/admin/users/1/api-keys",
+                f"{ADMIN_BASE_URL}/api/v1/admin/users/1/api-keys",
                 headers=HEADERS
             )
 

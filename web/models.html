@@ -42,7 +42,7 @@
 				<h2>模型列表</h2>
 				<div class="list-tools">
 					<span class="list-caption" id="model-caption">共 0 个模型</span>
-					<button class="ghost-button" id="export-open-button" type="button" aria-pressed="false" disabled>导出 Copilot 配置</button>
+					<button class="ghost-button" id="export-open-button" type="button" aria-pressed="false" disabled>生成配置</button>
 				</div>
 			</div>
 			<div class="models-grid" id="models-grid"></div>
@@ -50,6 +50,8 @@
 			<div class="selection-bar" id="selection-bar" hidden>
 				<span class="selection-count" id="selection-count">已选 0 个模型</span>
 				<div class="selection-actions">
+					<button class="ghost-button" id="selection-all-button" type="button">全选</button>
+					<button class="ghost-button" id="selection-none-button" type="button">全不选</button>
 					<button class="ghost-button" id="selection-cancel-button" type="button">取消</button>
 					<button class="submit-button selection-submit" id="selection-export-button" type="button" disabled>生成配置</button>
 				</div>
@@ -85,14 +87,21 @@
 		<div class="dialog-heading">
 			<div>
 				<p class="eyebrow">Export</p>
-				<h2 id="export-dialog-title">Copilot 配置</h2>
+				<h2 id="export-dialog-title">生成配置</h2>
 			</div>
 			<button class="icon-button dialog-close" id="export-close-button" type="button" aria-label="关闭" title="关闭">×</button>
 		</div>
-		<p class="dialog-description">以下 JSON 可直接用于 Copilot 的自定义模型配置。</p>
+		<div class="export-format" id="export-format" role="group" aria-label="配置格式">
+			<button class="format-button is-active" type="button" data-format="copilot" aria-pressed="true">Copilot</button>
+		</div>
+		<p class="dialog-description" id="export-description">以下 JSON 可直接用于 Copilot 的自定义模型配置。</p>
 		<div class="export-field">
 			<label for="export-url">服务地址</label>
-			<input id="export-url" type="url" value="https://sub2api.c.numlinka.com/v1" spellcheck="false" autocomplete="off">
+			<div class="export-url-box">
+				<input id="export-url" type="text" role="combobox" aria-expanded="false" aria-controls="export-url-list" aria-autocomplete="list" spellcheck="false" autocomplete="off" placeholder="正在获取 API 端点...">
+				<span class="export-url-caret" aria-hidden="true">▾</span>
+				<ul class="export-url-list" id="export-url-list" role="listbox" aria-label="服务地址候选" hidden></ul>
+			</div>
 		</div>
 		<textarea class="export-output" id="export-output" readonly spellcheck="false" aria-label="Copilot 配置 JSON"></textarea>
 		<div class="export-actions">

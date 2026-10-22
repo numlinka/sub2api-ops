@@ -10,8 +10,9 @@ import os
 HOST = os.environ.get("server_host", "127.0.0.1")
 PORT = int(os.environ.get("server_port", 8123))
 
-BASE_URL = os.environ.get("base_url", None)
+ADMIN_BASE_URL = os.environ.get("admin_base_url", None)
 ADMIN_KEY = os.environ.get("admin_key", None)
+API_BASE_URL = os.environ.get("api_base_url", None)
 
 DEBUG_MODE = os.environ.get("debug_mode", "false").lower() == "true"
 

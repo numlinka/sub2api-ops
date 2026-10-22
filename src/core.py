@@ -19,9 +19,9 @@ async def over_initial():
 
 
 def initial():
-    from constants import BASE_URL, ADMIN_KEY
+    from constants import ADMIN_BASE_URL, ADMIN_KEY
 
-    if (not BASE_URL) or (not ADMIN_KEY):
+    if (not ADMIN_BASE_URL) or (not ADMIN_KEY):
         raise SystemExit("Environment variables BASE_URL and ADMIN_KEY must be set.")
 
     api.initial()
