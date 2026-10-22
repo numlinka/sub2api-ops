@@ -18,10 +18,16 @@ const themeColor = document.querySelector("#theme-color");
 const exportOpenButton = document.querySelector("#export-open-button");
 const selectionBar = document.querySelector("#selection-bar");
 const selectionCount = document.querySelector("#selection-count");
+const selectionAllButton = document.querySelector("#selection-all-button");
+const selectionNoneButton = document.querySelector("#selection-none-button");
 const selectionCancelButton = document.querySelector("#selection-cancel-button");
 const selectionExportButton = document.querySelector("#selection-export-button");
 const exportDialog = document.querySelector("#export-dialog");
 const exportCloseButton = document.querySelector("#export-close-button");
+const exportFormatGroup = document.querySelector("#export-format");
+const exportDescription = document.querySelector("#export-description");
+const exportUrlBox = document.querySelector(".export-url-box");
+const exportUrlList = document.querySelector("#export-url-list");
 const exportUrlInput = document.querySelector("#export-url");
 const exportOutput = document.querySelector("#export-output");
 const exportCopyButton = document.querySelector("#export-copy-button");
@@ -30,9 +36,10 @@ const systemThemePreference = window.matchMedia("(prefers-color-scheme: dark)");
 const numberFormat = new Intl.NumberFormat("zh-CN");
 const modelsKeyCookie = "usageApiKey";
 const modelsKeyCookieMaxAge = 60 * 60 * 24 * 30;
-const defaultBaseUrl = "https://sub2api.c.numlinka.com/v1";
+const defaultBaseUrl = "/v1";
 const defaultContextWindow = 128000;
 const defaultMaxOutputTokens = 64000;
+let apiBaseUrls = [];
 const modalityLabels = {
 	text: "文本",
 	image: "图像",
@@ -41,8 +48,16 @@ const modalityLabels = {
 	file: "文件",
 	pdf: "PDF"
 };
+const formatConfigs = {
+	copilot: {
+		label: "Copilot",
+		description: "以下 JSON 可直接用于 Copilot 的自定义模型配置。",
+		build: (model, baseUrl) => buildCopilotConfig(model, baseUrl)
+	}
+};
 let currentModels = [];
 let selectionMode = false;
+let selectedFormat = "copilot";
 const selectedModelIds = new Set();
 const cardElements = new Map();
 
@@ -220,7 +235,7 @@ function updateSelectionUi() {
 	selectionExportButton.disabled = selectedModelIds.size === 0;
 	selectionBar.hidden = !selectionMode;
 	exportOpenButton.setAttribute("aria-pressed", String(selectionMode));
-	exportOpenButton.textContent = selectionMode ? "退出导出" : "导出 Copilot 配置";
+	exportOpenButton.textContent = selectionMode ? "退出生成" : "生成配置";
 }
 
 function setSelectionMode(enabled) {
@@ -337,16 +352,120 @@ function renderModels(models) {
 	setSelectionMode(false);
 }
 
+function normalizeBaseUrl(value) {
+	const text = typeof value === "string" ? value.trim() : "";
+	return text ? text.replace(/\/+$/, "") : "";
+}
+
 function readBaseUrl() {
 	const value = exportUrlInput.value.trim();
-	return value ? value.replace(/\/+$/, "") : defaultBaseUrl;
+	if (value) return normalizeBaseUrl(value);
+	return apiBaseUrls[0] ?? defaultBaseUrl;
+}
+
+function buildUrlOptions() {
+	exportUrlList.replaceChildren();
+	if (apiBaseUrls.length === 0) return;
+
+	apiBaseUrls.forEach((url, index) => {
+		const item = document.createElement("li");
+		item.className = "export-url-option";
+		item.id = `export-url-option-${index}`;
+		item.setAttribute("role", "option");
+		item.dataset.value = url;
+		item.textContent = url;
+		exportUrlList.append(item);
+	});
+}
+
+let highlightedUrlIndex = -1;
+
+function urlOptions() {
+	return [...exportUrlList.querySelectorAll(".export-url-option")];
+}
+
+function setHighlightedUrl(index) {
+	const options = urlOptions();
+	if (options.length === 0) {
+		highlightedUrlIndex = -1;
+		return;
+	}
+
+	const next = Math.min(Math.max(index, -1), options.length - 1);
+	highlightedUrlIndex = next;
+	options.forEach((option, position) => {
+		const active = position === next;
+		option.classList.toggle("is-highlighted", active);
+		option.setAttribute("aria-selected", String(active));
+		if (active) {
+			exportUrlInput.setAttribute("aria-activedescendant", option.id || "");
+			option.scrollIntoView({ block: "nearest" });
+		}
+	});
+	if (next < 0) exportUrlInput.removeAttribute("aria-activedescendant");
+}
+
+function isUrlListOpen() {
+	return !exportUrlList.hidden;
+}
+
+function openUrlList() {
+	if (apiBaseUrls.length === 0 || isUrlListOpen()) return;
+	exportUrlList.hidden = false;
+	exportUrlInput.setAttribute("aria-expanded", "true");
+	exportUrlBox.classList.add("is-open");
+	const current = normalizeBaseUrl(exportUrlInput.value);
+	const matchIndex = apiBaseUrls.indexOf(current);
+	setHighlightedUrl(matchIndex);
+}
+
+function closeUrlList() {
+	if (!isUrlListOpen()) return;
+	exportUrlList.hidden = true;
+	exportUrlInput.setAttribute("aria-expanded", "false");
+	exportUrlBox.classList.remove("is-open");
+	highlightedUrlIndex = -1;
+	urlOptions().forEach((option) => {
+		option.classList.remove("is-highlighted");
+		option.setAttribute("aria-selected", "false");
+	});
+	exportUrlInput.removeAttribute("aria-activedescendant");
+}
+
+function chooseUrl(value) {
+	const url = normalizeBaseUrl(value);
+	closeUrlList();
+	if (!url) return;
+	exportUrlInput.value = url;
+	renderExportConfig();
+}
+
+async function loadApiBaseUrl() {
+	try {
+		const response = await fetch("/api/base-url", { headers: { Accept: "application/json" } });
+		if (!response.ok) return;
+
+		const payload = await response.json();
+		const list = Array.isArray(payload) ? payload : [payload];
+		const urls = [...new Set(list.map(normalizeBaseUrl).filter(Boolean))];
+		if (urls.length === 0) return;
+
+		apiBaseUrls = urls;
+		exportUrlInput.placeholder = defaultBaseUrl;
+		if (!exportUrlInput.value.trim()) exportUrlInput.value = urls[0];
+		buildUrlOptions();
+		if (exportDialog.open) renderExportConfig();
+	} catch {
+		// 后端不可用时沿用输入框内的地址。
+	}
 }
 
 function renderExportConfig() {
 	const baseUrl = readBaseUrl();
+	const build = formatConfigs[selectedFormat]?.build ?? formatConfigs.copilot.build;
 	const configs = currentModels
 		.filter((model) => selectedModelIds.has(String(model.id)))
-		.map((model) => buildCopilotConfig(model, baseUrl));
+		.map((model) => build(model, baseUrl));
 	exportOutput.value = JSON.stringify(configs, null, 4);
 	exportCopyButton.disabled = configs.length === 0;
 	setExportFeedback("");
@@ -447,19 +566,95 @@ themeToggle.addEventListener("click", () => {
 
 exportOpenButton.addEventListener("click", () => {
 	setSelectionMode(!selectionMode);
-	setFeedback(selectionMode ? "请选择需要导出的模型，然后点击「生成配置」。" : "已退出导出选择。");
+	setFeedback(selectionMode ? "请选择需要生成配置的模型，然后点击「生成配置」。" : "已退出生成配置。");
+});
+
+selectionAllButton.addEventListener("click", () => {
+	if (!selectionMode) return;
+	currentModels.forEach((model) => selectedModelIds.add(String(model.id)));
+	updateSelectionUi();
+});
+
+selectionNoneButton.addEventListener("click", () => {
+	if (!selectionMode) return;
+	selectedModelIds.clear();
+	updateSelectionUi();
 });
 
 selectionCancelButton.addEventListener("click", () => {
 	setSelectionMode(false);
-	setFeedback("已取消导出选择。");
+	setFeedback("已取消生成配置。");
 });
 
 selectionExportButton.addEventListener("click", openExportDialog);
 exportCloseButton.addEventListener("click", () => exportDialog.close());
-exportUrlInput.addEventListener("input", renderExportConfig);
+
+exportUrlInput.addEventListener("input", () => {
+	renderExportConfig();
+	if (isUrlListOpen()) setHighlightedUrl(-1);
+});
+
+exportUrlInput.addEventListener("focus", () => {
+	if (apiBaseUrls.length > 0) openUrlList();
+});
+
+exportUrlInput.addEventListener("click", () => {
+	if (apiBaseUrls.length > 0) openUrlList();
+});
+
+exportUrlInput.addEventListener("keydown", (event) => {
+	const options = urlOptions();
+	if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+		if (!isUrlListOpen()) openUrlList();
+		if (options.length === 0) return;
+		event.preventDefault();
+		const step = event.key === "ArrowDown" ? 1 : -1;
+		const start = highlightedUrlIndex < 0 ? (step > 0 ? -1 : 0) : highlightedUrlIndex;
+		setHighlightedUrl(start + step);
+		return;
+	}
+	if (event.key === "Enter" && isUrlListOpen() && highlightedUrlIndex >= 0) {
+		event.preventDefault();
+		chooseUrl(options[highlightedUrlIndex].dataset.value);
+		return;
+	}
+	if (event.key === "Escape" && isUrlListOpen()) {
+		event.preventDefault();
+		closeUrlList();
+	}
+});
+
 exportUrlInput.addEventListener("blur", () => {
 	exportUrlInput.value = readBaseUrl();
+	closeUrlList();
+	renderExportConfig();
+});
+
+exportUrlList.addEventListener("mousedown", (event) => {
+	// 用 mousedown 抢在输入框 blur 之前完成选择。
+	const option = event.target.closest?.(".export-url-option");
+	if (!option) return;
+	event.preventDefault();
+	chooseUrl(option.dataset.value);
+	exportUrlInput.focus();
+});
+
+document.addEventListener("pointerdown", (event) => {
+	if (isUrlListOpen() && !event.target.closest?.(".export-url-box")) closeUrlList();
+});
+
+exportFormatGroup.addEventListener("click", (event) => {
+	const button = event.target.closest?.(".format-button");
+	if (!button || button.disabled) return;
+	const format = button.dataset.format;
+	if (!format || !formatConfigs[format] || format === selectedFormat) return;
+	selectedFormat = format;
+	exportFormatGroup.querySelectorAll(".format-button").forEach((item) => {
+		const active = item === button;
+		item.classList.toggle("is-active", active);
+		item.setAttribute("aria-pressed", String(active));
+	});
+	exportDescription.textContent = formatConfigs[selectedFormat].description;
 	renderExportConfig();
 });
 
@@ -477,6 +672,7 @@ systemThemePreference.addEventListener("change", (event) => {
 });
 
 const savedKey = getSavedKey();
+loadApiBaseUrl();
 if (savedKey) {
 	keyInput.value = savedKey;
 	queryModels(savedKey);

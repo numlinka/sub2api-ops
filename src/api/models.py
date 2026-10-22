@@ -11,7 +11,7 @@ from basic import app, httpclient
 from typeins import ModelInfo
 from typeins import Modalities as ML
 from typeins import SupportedLevels as SL
-from constants import BASE_URL
+from constants import ADMIN_BASE_URL
 
 
 MODEL_INFO_LIST = [
@@ -129,7 +129,7 @@ async def models(request: Request):
         headers["authorization"] = authorization
 
     response = await httpclient.get(
-        f"{BASE_URL}/v1/models",
+        f"{ADMIN_BASE_URL}/v1/models",
         params=request.query_params,
         headers=headers,
     )
