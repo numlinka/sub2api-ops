@@ -15,6 +15,11 @@ class Granularity (StrEnum):
     DAILY = "daily"
 
 
+class Role (StrEnum):
+    USER = "user"
+    ADMIN = "admin"
+
+
 class UserTrend (TypedDict):
     date: str
     user_id: int
@@ -99,12 +104,12 @@ class UserInfo (TypedDict):
     id: int
     email: str
     username: str
-    role: str
+    role: Role
     balance: int
     frozen_balance: int
     concurrency: int
     status: Status
-    allowed_groups: Optional[list]  # ? Unknown
+    allowed_groups: Optional[list[int]]
     last_active_at: str
     created_at: str
     updated_at: str
@@ -150,18 +155,18 @@ class UserAPIKey (TypedDict):
     group: Group
 
 
+class APIResponse [T] (TypedDict):
+    code: int
+    message: str
+    data: T
+
+
 class UsersResponseData (TypedDict):
     items: list[UserInfo]
     total: int
     page: int
     page_size: int
     pages: int
-
-
-class UsersResponse (TypedDict):
-    code: int
-    message: str
-    data: UsersResponseData
 
 
 class UserAPIKeysResponseData (TypedDict):
@@ -172,12 +177,6 @@ class UserAPIKeysResponseData (TypedDict):
     pages: int
 
 
-class UserAPIKeysResponse (TypedDict):
-    code: int
-    message: str
-    data: UserAPIKeysResponseData
-
-
 class UsersTrendResponseData (TypedDict):
     end_date: str
     granularity: str
@@ -185,7 +184,6 @@ class UsersTrendResponseData (TypedDict):
     trend: list[UserTrend]
 
 
-class UsersTrendResponse (TypedDict):
-    code: int
-    message: str
-    data: UsersTrendResponseData
+UsersResponse = APIResponse[UsersResponseData]
+UserAPIKeysResponse = APIResponse[UserAPIKeysResponseData]
+UsersTrendResponse = APIResponse[UsersTrendResponseData]

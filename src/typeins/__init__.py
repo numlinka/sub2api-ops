@@ -37,7 +37,6 @@ class UsageDetailsForDay (object):
 
 @dataclass
 class UserUsageDetails (object):
-    user_id: int = 0
     username: str = ""
     tokens: UsageDetailsForDay = field(default_factory=UsageDetailsForDay)
     requests: UsageDetailsForDay = field(default_factory=UsageDetailsForDay)

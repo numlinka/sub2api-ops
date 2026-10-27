@@ -5,8 +5,9 @@
 import asyncio
 import datetime
 import traceback
+
 from typeins import UserUsageDetails, UserAPIKey
-from typeins.sub2api import UsersTrendResponse, UsersResponse, UserAPIKeysResponse
+from typeins.sub2api import UsersTrendResponse, UsersResponse, UserAPIKeysResponse, Role
 
 # site
 from typex import Static
@@ -20,8 +21,6 @@ from constants import ADMIN_BASE_URL, HEADERS
 class Cache (Static):
     lock: asyncio.Lock = asyncio.Lock()
     usage_data: dict[int, UserUsageDetails] = {}
-    key_for_group: dict[str, int] = {}  # key -> group_id
-    subscriptions_tuple: dict[int, list[int]] = {}  # group_id -> uid_lst
 
 
 @app.post("/api/users-usage")
@@ -31,24 +30,50 @@ async def post_users_usage(item: UserAPIKey) -> list[UserUsageDetails]:
 
     获得同组用户的使用详情
     """
-    if not await is_valid_key(item.key):
+    if not item.key:
         await asyncio.sleep(5)
         return Response(status_code=403, content="Invalid key")  # type: ignore
 
+    response = await httpclient.get(
+        f"{ADMIN_BASE_URL}/api/v1/admin/users",
+        headers=HEADERS,
+        params={
+            "search": item.key
+        }
+    )
+
+    jsondata: UsersResponse = response.json()
+
+    if len(jsondata["data"]["items"]) == 0:
+        await asyncio.sleep(5)
+        return []
+
+    user_info = jsondata["data"]["items"][0]
+    user_role = user_info["role"]
+
+    if user_role == Role.ADMIN:
+        async with Cache.lock:
+            return list(Cache.usage_data.values())
+
+    user_id = user_info["id"]
+    uid_lst = [user_id]
+
+    if "subscriptions" in user_info:
+        user_groups = [item["group_id"] for item in user_info["subscriptions"]]
+
+        for group_id in user_groups:
+            response = await httpclient.get(
+                f"{ADMIN_BASE_URL}/api/v1/admin/users",
+                headers=HEADERS,
+                params={
+                    "api_key_group_id": group_id
+                }
+            )
+            jsondata: UsersResponse = response.json()
+            uid_lst = [item["id"] for item in jsondata["data"]["items"]]
+
     async with Cache.lock:
-        if item.key not in Cache.key_for_group:
-            return []
-        group_id = Cache.key_for_group[item.key]
-        if group_id not in Cache.subscriptions_tuple:
-            return []
-        uid_lst = Cache.subscriptions_tuple[group_id]
-        lst = []
-
-        for uid in uid_lst:
-            if uid not in Cache.usage_data: continue
-            lst.append(Cache.usage_data[uid])
-
-        return lst
+        return [v for k, v in Cache.usage_data.items() if k in uid_lst]
 
 
 async def update_users_usage() -> None:
@@ -79,7 +104,6 @@ async def update_users_usage() -> None:
             if user_id not in users_usage:
                 userdata = UserUsageDetails()
                 users_usage[user_id] = userdata
-                userdata.user_id = user_id
                 userdata.username = item["username"] if item["username"] else item["email"]
                 userdata.tokens.total = item["tokens"]
                 userdata.requests.total = item["requests"]
@@ -108,66 +132,8 @@ async def update_users_usage() -> None:
         ...
 
 
-async def is_valid_key(key: str) -> bool:
-    if key in Cache.key_for_group:
-        return True
-
-    return False
-
-
-async def update_all_users_keys() -> None:
-    try:
-        response = await httpclient.get(
-            f"{ADMIN_BASE_URL}/api/v1/admin/users",
-            headers=HEADERS
-        )
-
-        users_data: UsersResponse = response.json()
-        items = users_data["data"]["items"]
-        uid_lst = []
-        subscriptions_tuple = {}
-
-        for user_info in items:
-            uid = user_info["id"]
-            uid_lst.append(uid)
-
-            if "subscriptions" not in user_info: continue
-            for subscription in user_info["subscriptions"]:
-                group_id = subscription["group_id"]
-                if group_id not in subscriptions_tuple:
-                    subscriptions_tuple[group_id] = []
-                subscriptions_tuple[group_id].append(uid)
-
-        key_for_group = {}
-
-        for uid in uid_lst:
-            response = await httpclient.get(
-                f"{ADMIN_BASE_URL}/api/v1/admin/users/1/api-keys",
-                headers=HEADERS
-            )
-
-            keys_data: UserAPIKeysResponse = response.json()
-            items = keys_data["data"]["items"]
-
-            for key_info in items:
-                key = key_info["key"]
-                group_id = key_info["group_id"]
-                key_for_group[key] = group_id
-
-        async with Cache.lock:
-            Cache.key_for_group = key_for_group
-            Cache.subscriptions_tuple = subscriptions_tuple
-
-    except Exception as _:
-        print(traceback.format_exc())
-
-    finally:
-        ...
-
-
 async def auto_update():
     while True:
-        await update_all_users_keys()
         await update_users_usage()
         await asyncio.sleep(300)
 
