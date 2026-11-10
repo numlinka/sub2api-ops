@@ -103,6 +103,22 @@ MODEL_INFO_LIST = [
         1024*K, 128*K,
         [ML.TEXT, ML.IMAGE], [ML.TEXT]
     ),
+    # ================================= Doubao =================================
+    ModelInfo(
+        "doubao-seed-2.0-mini", "Doubao Seed 2.0 Mini",
+        256*K, 128*K,
+        [ML.TEXT, ML.IMAGE, ML.VIDEO, ML.AUDIO], [ML.TEXT]
+    ),
+    ModelInfo(
+        "doubao-seed-2.1-lite", "Doubao Seed 2.1 Lite",
+        1024*K, 256*K,
+        [ML.TEXT, ML.IMAGE, ML.VIDEO, ML.AUDIO], [ML.TEXT]
+    ),
+    ModelInfo(
+        "doubao-seed-2.1-pro", "Doubao Seed 2.1 Pro",
+        1024*K, 256*K,
+        [ML.TEXT, ML.IMAGE, ML.VIDEO, ML.AUDIO], [ML.TEXT]
+    ),
     # ================================ HunYuan =================================
     ModelInfo(
         "hy3", "HunYuan 3",

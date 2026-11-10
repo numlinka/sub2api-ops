@@ -15,6 +15,8 @@ from pydantic import BaseModel
 class Modalities(StrEnum):
     TEXT = "text"
     IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
 
 
 class SupportedLevels(StrEnum):
