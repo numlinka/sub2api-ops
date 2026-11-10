@@ -60,4 +60,3 @@ class ModelInfo (object):
     owned_by: str = ""
     created: int = 1753600000
     object: str = "model"
-

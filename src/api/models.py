@@ -6,115 +6,11 @@ import json
 
 # local
 from fastapi import Request, Response
-
 from basic import app, httpclient
-from typeins import ModelInfo
-from typeins import Modalities as ML
-from typeins import SupportedLevels as SL
 from constants import ADMIN_BASE_URL
 
-
-MODEL_INFO_LIST = [
-    ModelInfo(
-        "deepseek-flash", "DeepSeek Flash",
-        1024*1024, 384*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.HIGH
-    ),
-    ModelInfo(
-        "deepseek-v4.1-flash", "DeepSeek V4.1 Flash",
-        1024*1024, 384*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.HIGH
-    ),
-    ModelInfo(
-        "deepseek-v4.1-flash-economy", "DeepSeek V4.1 Flash Economy",
-        1024*1024, 384*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.HIGH
-    ),
-    ModelInfo(
-        "deepseek-v4-pro", "DeepSeek V4 Pro",
-        1024*1024, 384*1024,
-        [ML.TEXT], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.HIGH
-    ),
-    ModelInfo(
-        "glm-5.3-flash", "GLM 5.3 Flash",
-        1024*1024, 128*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.MAX
-    ),
-    ModelInfo(
-        "glm-5.3", "GLM 5.3",
-        1024*1024, 128*1024,
-        [ML.TEXT], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.MAX
-    ),
-    ModelInfo(
-        "kimi-k3", "Kimi K3",
-        1024*1024, 128*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.MAX
-    ),
-    ModelInfo(
-        "kimi-k2.8-preview", "Kimi K2.8 Preview",
-        1024*1024, 128*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.HIGH
-    ),
-    ModelInfo(
-        "kimi-k2.7-code", "Kimi K2.7 Code",
-        256*1024, 32*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT]
-    ),
-    ModelInfo(
-        "minimax-m3", "Minimax M3",
-        1024*1024, 128*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT]
-    ),
-    ModelInfo(
-        "mimo-v2.6-flash", "Mimo V2.6 Flash",
-        1024*1024, 128*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT]
-    ),
-    ModelInfo(
-        "mimo-v2.6-pro", "Mimo V2.6 Pro",
-        1024*1024, 128*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT]
-    ),
-    ModelInfo(
-        "mimo-v2.6-pro-ultraspeed", "Mimo V2.6 Pro UltraSpeed",
-        1024*1024, 128*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT]
-    ),
-    ModelInfo(
-        "hy4-preview", "Hy4 Preview",
-        1024*1024, 64*1024,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.HIGH, SL.MAX], SL.HIGH
-    ),
-    ModelInfo(
-        "gpt-6-astra", "GPT-6 Astra",
-        1050000, 128000,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.MEDIUM, SL.HIGH, SL.XHIGH, SL.MAX]
-    ),
-    ModelInfo(
-        "gpt-6.1-sol", "GPT-6.1 Sol",
-        1050000, 128000,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.NONE, SL.LOW, SL.MEDIUM, SL.HIGH, SL.XHIGH, SL.MAX], SL.MEDIUM
-    ),
-    ModelInfo(
-        "grok-4.7", "Grok 4.7",
-        500000, None,
-        [ML.TEXT, ML.IMAGE], [ML.TEXT],
-        [SL.LOW, SL.MEDIUM, SL.HIGH, SL.XHIGH], SL.HIGH
-    )
-]
-
-MODELS_TABLE: dict[str, ModelInfo] = {model.id: model for model in MODEL_INFO_LIST}
+# internal
+from .models_info import MODELS_TABLE
 
 
 @app.get("/models")
