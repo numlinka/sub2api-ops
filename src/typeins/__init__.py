@@ -30,9 +30,9 @@ class SupportedLevels(StrEnum):
 
 @dataclass
 class UsageDetailsForDay (object):
-    today: int = 0
-    yesterday: int = 0
-    total: int = 0
+    today: int | float = 0
+    yesterday: int | float = 0
+    total: int | float = 0
 
 
 @dataclass
@@ -40,6 +40,7 @@ class UserUsageDetails (object):
     username: str = ""
     tokens: UsageDetailsForDay = field(default_factory=UsageDetailsForDay)
     requests: UsageDetailsForDay = field(default_factory=UsageDetailsForDay)
+    actual_cost: UsageDetailsForDay = field(default_factory=UsageDetailsForDay)
 
 
 class UserAPIKey (BaseModel):

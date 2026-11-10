@@ -77,7 +77,7 @@ class Group (TypedDict):
     rpm_limit: int
     max_reasoning_effort: str
     max_reasoning_effort_over_limit: str
-    reasoning_effort_mappings: list
+    reasoning_effort_mappings: list[None]  # ? Unknown
     created_at: str
     updated_at: str
 

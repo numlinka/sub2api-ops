@@ -5,6 +5,7 @@ const keyDialog = document.querySelector("#key-dialog");
 const keyOpenButton = document.querySelector("#key-open-button");
 const keyCloseButton = document.querySelector("#key-close-button");
 const keyFeedback = document.querySelector("#key-feedback");
+const logoutButton = document.querySelector("#logout-button");
 const feedback = document.querySelector("#feedback");
 const refreshButton = document.querySelector("#refresh-button");
 const results = document.querySelector("#results");
@@ -13,6 +14,11 @@ const emptyState = document.querySelector("#empty-state");
 const themeToggle = document.querySelector("#theme-toggle");
 const themeIcon = document.querySelector("#theme-icon");
 const themeColor = document.querySelector("#theme-color");
+
+function setKeyButtonLabel(label) {
+	keyOpenButton.setAttribute("aria-label", label);
+	keyOpenButton.title = label;
+}
 const metricTotalLabel = document.querySelector("#metric-total-label");
 const metricTotal = document.querySelector("#metric-total");
 const topUserLabel = document.querySelector("#top-user-label");
@@ -24,6 +30,10 @@ const numberFormat = new Intl.NumberFormat("zh-CN");
 const percentFormat = new Intl.NumberFormat("zh-CN", {
 	minimumFractionDigits: 1,
 	maximumFractionDigits: 1
+});
+const costFormat = new Intl.NumberFormat("zh-CN", {
+	minimumFractionDigits: 2,
+	maximumFractionDigits: 4
 });
 const usageKeyCookie = "usageApiKey";
 const usageKeyCookieMaxAge = 60 * 60 * 24 * 30;
@@ -37,8 +47,10 @@ const metricConfig = {
 		unit: "tokens",
 		tooltipLabel: "Tokens",
 		topUserLabel: "Token 最高",
+		formatValue: (value) => numberFormat.format(value),
+		formatAmount: (value) => `${numberFormat.format(value)} tokens`,
 		rangeLabels: {
-			total: { metric: "Token 总量", caption: "按总 Token 用量从高到低" },
+			total: { metric: "本月 Token", caption: "按本月 Token 用量从高到低" },
 			yesterday: { metric: "昨日 Token", caption: "按昨日 Token 用量从高到低" },
 			today: { metric: "今日 Token", caption: "按今日 Token 用量从高到低" }
 		}
@@ -47,10 +59,24 @@ const metricConfig = {
 		unit: "requests",
 		tooltipLabel: "请求数",
 		topUserLabel: "请求数最高",
+		formatValue: (value) => numberFormat.format(value),
+		formatAmount: (value) => `${numberFormat.format(value)} requests`,
 		rangeLabels: {
-			total: { metric: "请求总数", caption: "按总请求数从高到低" },
+			total: { metric: "本月请求数", caption: "按本月请求数从高到低" },
 			yesterday: { metric: "昨日请求数", caption: "按昨日请求数从高到低" },
 			today: { metric: "今日请求数", caption: "按今日请求数从高到低" }
+		}
+	},
+	cost: {
+		unit: "USD",
+		tooltipLabel: "消费",
+		topUserLabel: "消费最高",
+		formatValue: (value) => `${costFormat.format(value)} USD`,
+		formatAmount: (value) => `${costFormat.format(value)} USD`,
+		rangeLabels: {
+			total: { metric: "本月消费", caption: "按本月消费金额从高到低" },
+			yesterday: { metric: "昨日消费", caption: "按昨日消费金额从高到低" },
+			today: { metric: "今日消费", caption: "按今日消费金额从高到低" }
 		}
 	}
 };
@@ -107,9 +133,9 @@ function updateSegmentTooltip() {
 	segmentTooltip.append(period);
 
 	[
-		[segment.dataset.metricLabel, numberFormat.format(Number(segment.dataset.amount))],
+		[segment.dataset.metricLabel, segment.dataset.amountText],
 		["阶段占比", `${segment.dataset.dayShare}%`],
-		["总量占比", `${segment.dataset.totalShare}%`]
+		["本月占比", `${segment.dataset.totalShare}%`]
 	].forEach(([label, value]) => {
 		const labelElement = document.createElement("span");
 		labelElement.className = "tooltip-label";
@@ -132,6 +158,27 @@ function updateSegmentTooltip() {
 function setFeedback(message, kind = "") {
 	feedback.textContent = message;
 	feedback.dataset.kind = kind;
+}
+
+function syncLogoutVisibility() {
+	logoutButton.hidden = !getSavedUsageKey();
+}
+
+function logout() {
+	clearUsageKey();
+	currentUsers = [];
+	keyInput.value = "";
+	setKeyButtonLabel("输入 Key");
+	setFeedback("请输入有效 Key 后查询。", "");
+	setKeyFeedback("已退出登录，Key 已清除。", "success");
+	results.hidden = true;
+	usageList.replaceChildren();
+	emptyState.hidden = true;
+	hoveredSegment = null;
+	focusedSegment = null;
+	segmentTooltip.hidden = true;
+	syncLogoutVisibility();
+	keyInput.focus();
 }
 
 function setKeyFeedback(message, kind = "") {
@@ -161,7 +208,8 @@ function renderUsers(users) {
 		.map((user) => ({
 			username: String(user.username ?? "未命名用户"),
 			tokens: readMetric(user.tokens),
-			requests: readMetric(user.requests)
+			requests: readMetric(user.requests),
+			cost: readMetric(user.actual_cost)
 		}))
 		.sort((left, right) => right[selectedMetric][selectedRange] - left[selectedMetric][selectedRange]);
 	const sumBy = (range) => sortedUsers.reduce((total, user) => total + user[selectedMetric][range], 0);
@@ -175,7 +223,7 @@ function renderUsers(users) {
 	);
 
 	document.querySelector("#user-count").textContent = numberFormat.format(sortedUsers.length);
-	metricTotal.textContent = numberFormat.format(totalValue);
+	metricTotal.textContent = config.formatValue(totalValue);
 	document.querySelector("#top-user").textContent = sortedUsers[0]?.username ?? "-";
 	metricTotalLabel.textContent = config.rangeLabels[selectedRange].metric;
 	topUserLabel.textContent = config.topUserLabel;
@@ -202,7 +250,7 @@ function renderUsers(users) {
 		const amount = document.createElement("div");
 		amount.className = "row-amount";
 		amount.append(createCell("row-percent", `${percentFormat.format(share)}%`));
-		amount.append(createCell("row-value", `${numberFormat.format(selectedValue)} ${config.unit}`));
+		amount.append(createCell("row-value", config.formatAmount(selectedValue)));
 		top.append(amount);
 
 		const track = document.createElement("div");
@@ -228,15 +276,16 @@ function renderUsers(users) {
 			const segment = document.createElement("span");
 			segment.className = `bar-segment bar-segment--${range}`;
 			segment.style.flexGrow = String(value);
-			const rangeName = range === "older" ? "更早" : range === "today" ? "当日" : "昨日";
+			const rangeName = range === "older" ? "本月更早" : range === "today" ? "当日" : "昨日";
 			const dayShare = periodTotal > 0 ? (value / periodTotal) * 100 : 0;
 			const totalShare = overallValue > 0 ? (value / overallValue) * 100 : 0;
 			segment.dataset.period = rangeName;
 			segment.dataset.metricLabel = config.tooltipLabel;
 			segment.dataset.amount = String(value);
+			segment.dataset.amountText = `${config.formatAmount(value)}`;
 			segment.dataset.dayShare = percentFormat.format(dayShare);
 			segment.dataset.totalShare = percentFormat.format(totalShare);
-			segment.setAttribute("aria-label", `${rangeName}, ${numberFormat.format(value)} ${config.unit}, ${segment.dataset.dayShare}% 时段占比, ${segment.dataset.totalShare}% 总量占比`);
+			segment.setAttribute("aria-label", `${rangeName}, ${config.formatAmount(value)}, ${segment.dataset.dayShare}% 时段占比, ${segment.dataset.totalShare}% 本月占比`);
 			segment.tabIndex = 0;
 			fill.append(segment);
 		});
@@ -256,7 +305,8 @@ function renderUsers(users) {
 function updateTheme(theme, persist = false) {
 	document.documentElement.dataset.theme = theme;
 	const nextThemeLabel = theme === "dark" ? "亮色" : "暗色";
-	themeIcon.textContent = theme === "dark" ? "☀" : "☾";
+	themeIcon.classList.toggle("icon--light-mode", theme === "dark");
+	themeIcon.classList.toggle("icon--dark-mode", theme !== "dark");
 	themeToggle.setAttribute("aria-label", `切换到${nextThemeLabel}模式`);
 	themeToggle.title = `切换到${nextThemeLabel}模式`;
 	themeColor.content = theme === "dark" ? "#171e19" : "#f3f5f0";
@@ -269,6 +319,7 @@ async function queryUsage(key) {
 	submitButton.disabled = true;
 	submitButton.textContent = "查询中...";
 	refreshButton.disabled = true;
+	refreshButton.classList.add("is-loading");
 	setFeedback("正在获取用户用量...");
 	setKeyFeedback("正在校验 Key...");
 
@@ -285,7 +336,8 @@ async function queryUsage(key) {
 		if (response.status === 403) {
 			clearUsageKey();
 			keyInput.value = "";
-			keyOpenButton.textContent = "输入 Key";
+			setKeyButtonLabel("输入 Key");
+			syncLogoutVisibility();
 			setKeyFeedback("Key 无效，请检查后重新输入。", "error");
 			setFeedback("Key 无效，请重新输入。", "error");
 			if (!keyDialog.open) keyDialog.showModal();
@@ -300,7 +352,8 @@ async function queryUsage(key) {
 		saveUsageKey(key);
 		currentUsers = users;
 		renderUsers(currentUsers);
-		keyOpenButton.textContent = "更换 Key";
+		setKeyButtonLabel("更换 Key");
+		syncLogoutVisibility();
 		if (keyDialog.open) keyDialog.close();
 		setKeyFeedback("");
 		setFeedback(`已更新 · ${new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`, "success");
@@ -312,6 +365,7 @@ async function queryUsage(key) {
 		submitButton.disabled = false;
 		submitButton.textContent = "查询用量";
 		refreshButton.disabled = false;
+		refreshButton.classList.remove("is-loading");
 	}
 }
 
@@ -323,11 +377,13 @@ form.addEventListener("submit", (event) => {
 
 keyOpenButton.addEventListener("click", () => {
 	setKeyFeedback("");
+	syncLogoutVisibility();
 	keyDialog.showModal();
 	keyInput.focus();
 });
 
 keyCloseButton.addEventListener("click", () => keyDialog.close());
+logoutButton.addEventListener("click", logout);
 
 refreshButton.addEventListener("click", () => {
 	const savedKey = getSavedUsageKey();
@@ -417,6 +473,7 @@ metricButtons.forEach((button) => {
 });
 
 const savedKey = getSavedUsageKey();
+syncLogoutVisibility();
 if (savedKey) {
 	keyInput.value = savedKey;
 	queryUsage(savedKey);

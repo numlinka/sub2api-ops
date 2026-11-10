@@ -4,6 +4,7 @@
 __all__ = ["app", "httpclient"]
 
 # std
+from typing import Any
 from contextlib import asynccontextmanager
 
 # site
@@ -23,7 +24,7 @@ async def stop_task():
 
 
 @asynccontextmanager
-async def lifespan(*_):
+async def lifespan(*_: Any):
     await start_task()
     yield
     await stop_task()

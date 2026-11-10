@@ -7,7 +7,7 @@ import datetime
 import traceback
 
 from typeins import UserUsageDetails, UserAPIKey
-from typeins.sub2api import UsersTrendResponse, UsersResponse, UserAPIKeysResponse, Role
+from typeins.sub2api import UsersTrendResponse, UsersResponse, Role
 
 # site
 from typex import Static
@@ -107,20 +107,24 @@ async def update_users_usage() -> None:
                 userdata.username = item["username"] if item["username"] else item["email"]
                 userdata.tokens.total = item["tokens"]
                 userdata.requests.total = item["requests"]
+                userdata.actual_cost.total = item["actual_cost"]
 
             else:
                 userdata = users_usage[user_id]
                 userdata.requests.total += item["requests"]
                 userdata.tokens.total += item["tokens"]
+                userdata.actual_cost.total += item["actual_cost"]
 
             date = item["date"]
             if date == today_str:
                 userdata.tokens.today = item["tokens"]
                 userdata.requests.today = item["requests"]
+                userdata.actual_cost.today = item["actual_cost"]
 
             elif date == yesterday_str:
-                userdata.requests.yesterday = item["requests"]
                 userdata.tokens.yesterday = item["tokens"]
+                userdata.requests.yesterday = item["requests"]
+                userdata.actual_cost.yesterday = item["actual_cost"]
 
         async with Cache.lock:
             Cache.usage_data = users_usage

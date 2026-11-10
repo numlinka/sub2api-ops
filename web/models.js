@@ -3,8 +3,14 @@ const keyInput = document.querySelector("#api-key");
 const submitButton = document.querySelector("#submit-button");
 const keyDialog = document.querySelector("#key-dialog");
 const keyOpenButton = document.querySelector("#key-open-button");
+
+function setKeyButtonLabel(label) {
+	keyOpenButton.setAttribute("aria-label", label);
+	keyOpenButton.title = label;
+}
 const keyCloseButton = document.querySelector("#key-close-button");
 const keyFeedback = document.querySelector("#key-feedback");
+const logoutButton = document.querySelector("#logout-button");
 const feedback = document.querySelector("#feedback");
 const refreshButton = document.querySelector("#refresh-button");
 const results = document.querySelector("#results");
@@ -102,6 +108,33 @@ function setFeedback(message, kind = "") {
 function setKeyFeedback(message, kind = "") {
 	keyFeedback.textContent = message;
 	keyFeedback.dataset.kind = kind;
+}
+
+function syncLogoutVisibility() {
+	logoutButton.hidden = !getSavedKey();
+}
+
+function logout() {
+	clearKey();
+	currentModels = [];
+	selectedModelIds.clear();
+	modelsGrid.replaceChildren();
+	cardElements.clear();
+	selectionMode = false;
+	modelsGrid.classList.remove("is-selecting");
+	selectionBar.hidden = true;
+	results.hidden = true;
+	emptyState.hidden = true;
+	modelCaption.textContent = "共 0 个模型";
+	exportOpenButton.disabled = true;
+	exportOpenButton.setAttribute("aria-pressed", "false");
+	exportOpenButton.textContent = "生成配置";
+	keyInput.value = "";
+	setKeyButtonLabel("输入 Key");
+	setFeedback("请输入有效 Key 后查询。", "");
+	setKeyFeedback("已退出登录，Key 已清除。", "success");
+	syncLogoutVisibility();
+	keyInput.focus();
 }
 
 function setExportFeedback(message, kind = "") {
@@ -264,6 +297,25 @@ function toggleModelSelection(modelId) {
 	updateSelectionUi();
 }
 
+function createIcon(iconName) {
+	const icon = document.createElement("span");
+	icon.className = `icon icon--${iconName}`;
+	icon.setAttribute("aria-hidden", "true");
+	return icon;
+}
+
+function setCopyButtonState(button, copied, idleLabel = "复制") {
+	const stateLabel = copied ? "已复制" : idleLabel;
+	button.classList.toggle("is-copied", copied);
+	button.setAttribute("aria-label", stateLabel);
+	button.title = stateLabel;
+	const icon = button.querySelector(".icon");
+	if (icon) {
+		icon.classList.toggle("icon--content-copy", !copied);
+		icon.classList.toggle("icon--check-circle", copied);
+	}
+}
+
 function createCard(model, index) {
 	const modelId = String(model.id ?? "");
 	const card = document.createElement("article");
@@ -299,19 +351,18 @@ function createCard(model, index) {
 	const copyButton = document.createElement("button");
 	copyButton.className = "copy-button";
 	copyButton.type = "button";
-	copyButton.textContent = "复制";
+	copyButton.append(createIcon("content-copy"));
 	copyButton.setAttribute("aria-label", `复制模型 ID ${id.textContent}`);
+	copyButton.title = "复制模型 ID";
 	copyButton.addEventListener("click", async (event) => {
 		event.stopPropagation();
 		if (!id.textContent) return;
 
 		const copied = await copyText(id.textContent);
-		copyButton.textContent = copied ? "已复制" : "复制失败";
-		copyButton.classList.toggle("is-copied", copied);
+		setCopyButtonState(copyButton, copied);
 		copyStatus.textContent = copied ? `已复制模型 ID ${id.textContent}` : `复制模型 ID ${id.textContent} 失败`;
 		window.setTimeout(() => {
-			copyButton.textContent = "复制";
-			copyButton.classList.remove("is-copied");
+			setCopyButtonState(copyButton, false);
 		}, 1600);
 	});
 
@@ -480,7 +531,8 @@ function openExportDialog() {
 function updateTheme(theme, persist = false) {
 	document.documentElement.dataset.theme = theme;
 	const nextThemeLabel = theme === "dark" ? "亮色" : "暗色";
-	themeIcon.textContent = theme === "dark" ? "☀" : "☾";
+	themeIcon.classList.toggle("icon--light-mode", theme === "dark");
+	themeIcon.classList.toggle("icon--dark-mode", theme !== "dark");
 	themeToggle.setAttribute("aria-label", `切换到${nextThemeLabel}模式`);
 	themeToggle.title = `切换到${nextThemeLabel}模式`;
 	themeColor.content = theme === "dark" ? "#171e19" : "#f3f5f0";
@@ -489,6 +541,7 @@ function updateTheme(theme, persist = false) {
 
 function openKeyDialog(message = "") {
 	setKeyFeedback(message, message ? "error" : "");
+	syncLogoutVisibility();
 	if (!keyDialog.open) keyDialog.showModal();
 	keyInput.focus();
 }
@@ -499,6 +552,7 @@ async function queryModels(key) {
 	submitButton.disabled = true;
 	submitButton.textContent = "查询中...";
 	refreshButton.disabled = true;
+	refreshButton.classList.add("is-loading");
 	setFeedback("正在获取可用模型...");
 	setKeyFeedback("正在校验 Key...");
 
@@ -514,7 +568,8 @@ async function queryModels(key) {
 		if (response.status === 401 || response.status === 403) {
 			clearKey();
 			keyInput.value = "";
-			keyOpenButton.textContent = "输入 Key";
+			setKeyButtonLabel("输入 Key");
+			syncLogoutVisibility();
 			setFeedback("Key 无效，请重新输入。", "error");
 			openKeyDialog("Key 无效，请检查后重新输入。");
 			return;
@@ -529,7 +584,8 @@ async function queryModels(key) {
 		saveKey(key);
 		currentModels = visibleModels;
 		renderModels(currentModels);
-		keyOpenButton.textContent = "更换 Key";
+		setKeyButtonLabel("更换 Key");
+		syncLogoutVisibility();
 		if (keyDialog.open) keyDialog.close();
 		setKeyFeedback("");
 		setFeedback(`已更新 · ${new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`, "success");
@@ -541,6 +597,7 @@ async function queryModels(key) {
 		submitButton.disabled = false;
 		submitButton.textContent = "查询模型";
 		refreshButton.disabled = false;
+		refreshButton.classList.remove("is-loading");
 	}
 }
 
@@ -552,6 +609,7 @@ form.addEventListener("submit", (event) => {
 
 keyOpenButton.addEventListener("click", () => openKeyDialog());
 keyCloseButton.addEventListener("click", () => keyDialog.close());
+logoutButton.addEventListener("click", logout);
 
 refreshButton.addEventListener("click", () => {
 	const savedKey = getSavedKey();
@@ -661,8 +719,8 @@ exportFormatGroup.addEventListener("click", (event) => {
 exportCopyButton.addEventListener("click", async () => {
 	const copied = await copyText(exportOutput.value);
 	setExportFeedback(copied ? "已复制配置到剪贴板。" : "复制失败，请手动选中文本复制。", copied ? "success" : "error");
-	exportCopyButton.textContent = copied ? "已复制" : "复制配置";
-	window.setTimeout(() => { exportCopyButton.textContent = "复制配置"; }, 1600);
+	setCopyButtonState(exportCopyButton, copied, "复制配置");
+	window.setTimeout(() => setCopyButtonState(exportCopyButton, false, "复制配置"), 1600);
 });
 
 systemThemePreference.addEventListener("change", (event) => {
@@ -673,6 +731,7 @@ systemThemePreference.addEventListener("change", (event) => {
 
 const savedKey = getSavedKey();
 loadApiBaseUrl();
+syncLogoutVisibility();
 if (savedKey) {
 	keyInput.value = savedKey;
 	queryModels(savedKey);

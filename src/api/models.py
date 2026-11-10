@@ -117,6 +117,7 @@ MODEL_INFO_LIST = [
 MODELS_TABLE: dict[str, ModelInfo] = {model.id: model for model in MODEL_INFO_LIST}
 
 
+@app.get("/models")
 @app.get("/v1/models")
 async def models(request: Request):
     """
@@ -124,7 +125,7 @@ async def models(request: Request):
 
     修复 Sub2API ``/models`` 端点返回的信息太少的问题
     """
-    headers = {}
+    headers: dict[str, str] = {}
     if authorization := request.headers.get("authorization"):
         headers["authorization"] = authorization
 
